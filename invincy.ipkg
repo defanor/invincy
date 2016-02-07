@@ -1,0 +1,6 @@
+package invincy
+
+modules = Invincy.Parsing
+        , Invincy.Printing
+        , Invincy.Invertible
+
