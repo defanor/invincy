@@ -37,14 +37,6 @@ jcArgs JTNull = ()
 jcArgs JTArray = List JsonValue
 jcArgs JTObject = SortedMap String JsonValue
 
-mkJson : (x: JsonType) -> jcArgs x -> JsonValue
-mkJson JTString = JsonString
-mkJson JTNumber = JsonNumber
-mkJson JTBool = JsonBool
-mkJson JTNull = const JsonNull
-mkJson JTArray = JsonArray
-mkJson JTObject = JsonObject
-
 dsJson : JsonValue -> (x ** jcArgs x)
 dsJson (JsonString s) = (JTString ** s)
 dsJson (JsonNumber n) = (JTNumber ** n)
@@ -87,13 +79,13 @@ jsonString' = (jsonString, MkPrinter $ unpack . show)
 
 mutual
   jsonValue' : PP (List Char) JsonValue
-  jsonValue' = choices' mkJson dsJson
-    [ (JTString ** jsonString')
-    , (JTNumber ** jsonNumber')
-    , (JTBool ** jsonBool')
-    , (JTNull ** jsonNull')
-    , (JTArray ** jsonArray')
-    , (JTObject ** jsonObject')
+  jsonValue' = choices dsJson
+    [ (JTString ** (JsonString, jsonString'))
+    , (JTNumber ** (JsonNumber, jsonNumber'))
+    , (JTBool ** (JsonBool, jsonBool'))
+    , (JTNull ** (const JsonNull, jsonNull'))
+    , (JTArray ** (JsonArray, jsonArray'))
+    , (JTObject ** (JsonObject, jsonObject'))
     ]
 
   jsonArray' : PP (List Char) (List JsonValue)
@@ -111,9 +103,9 @@ mutual
      <** spaces' <** val' '}')
 
 json' : PP (List Char) JsonValue
-json' = choices' mkJson dsJson
-  [ (JTArray ** jsonArray')
-  , (JTObject ** jsonObject')
+json' = choices dsJson
+  [ (JTArray ** (JsonArray, jsonArray'))
+  , (JTObject ** (JsonObject, jsonObject'))
   ]
 
 main : IO ()
