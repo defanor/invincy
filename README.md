@@ -47,9 +47,9 @@ lists:
 
 ```idris
 choices : DecEq e
-   => {f: e -> Type}
-   -> (d: t -> (x: e ** f x))
-   -> (l: LazyList (x:e ** (f x -> t, PP (List Char) (f x))))
+   => {f: e -> (a ** a -> t)}
+   -> (d: t -> (x: e ** getWitness (f x)))
+   -> (l: LazyList (x:e ** PP (List Char) (getWitness (f x))))
    -> PP (List Char) t
 ```
 
@@ -77,12 +77,12 @@ Here is how printers and parsers can be defined simultaneously:
 mutual
   jsonValue' : PP (List Char) JsonValue
   jsonValue' = choices dsJson
-    [ (JTString ** (JsonString, jsonString'))
-    , (JTNumber ** (JsonNumber, jsonNumber'))
-    , (JTBool ** (JsonBool, jsonBool'))
-    , (JTNull ** (const JsonNull, jsonNull'))
-    , (JTArray ** (JsonArray, jsonArray'))
-    , (JTObject ** (JsonObject, jsonObject'))
+    [ (JTString ** jsonString')
+    , (JTNumber ** jsonNumber')
+    , (JTBool ** jsonBool')
+    , (JTNull ** jsonNull')
+    , (JTArray ** jsonArray')
+    , (JTObject ** jsonObject')
     ]
 
   jsonArray' : PP (List Char) (List JsonValue)
