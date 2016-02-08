@@ -42,6 +42,17 @@ choice' : (Functor f, LazyAlternative f, Decidable g) =>
 choice' e (fa, ga) (fb, gb) = (fa <|> fb, choose e ga gb)
 ```
 
+And a couple of `choices` functions, to generate those choices from
+lists:
+
+```idris
+choices : DecEq e
+   => {f: e -> Type}
+   -> (d: t -> (x: e ** f x))
+   -> (l: LazyList (x:e ** (f x -> t, PP (List Char) (f x))))
+   -> PP (List Char) t
+```
+
 Perhaps more elaborate (and handy) alternatives will be added in the
 future.
 
@@ -63,19 +74,30 @@ documentation/comments should be written.
 Here is how printers and parsers can be defined simultaneously:
 
 ```idris
-jsonArray' : PP (List Char) (List JsonValue)
-jsonArray' = 
-  val' '[' **> spaces' **>
-  sepBy' jsonValue'
-         (spaces' **> val' ',' <** spaces')
-  <** spaces' <** val' ']'
+mutual
+  jsonValue' : PP (List Char) JsonValue
+  jsonValue' = choices dsJson
+    [ (JTString ** (JsonString, jsonString'))
+    , (JTNumber ** (JsonNumber, jsonNumber'))
+    , (JTBool ** (JsonBool, jsonBool'))
+    , (JTNull ** (const JsonNull, jsonNull'))
+    , (JTArray ** (JsonArray, jsonArray'))
+    , (JTObject ** (JsonObject, jsonObject'))
+    ]
 
-jsonObject' : PP (List Char) (SortedMap String JsonValue)
-jsonObject' = (fromList, toList) <$$>
-  (val' '{' **> spaces' **>
-   sepBy' (jsonString' <** spaces' <** (val' ':') <** spaces' <**> jsonValue')
-          (spaces' **> val' ',' <** spaces')
-   <** spaces' <** val' '}')
+  jsonArray' : PP (List Char) (List JsonValue)
+  jsonArray' =
+    val' '[' **> spaces' **>
+    sepBy' jsonValue'
+           (spaces' **> val' ',' <** spaces')
+    <** spaces' <** val' ']'
+
+  jsonObject' : PP (List Char) (SortedMap String JsonValue)
+  jsonObject' = (fromList, toList) <$$>
+    (val' '{' **> spaces' **>
+     sepBy' (jsonString' <** spaces' <** (val' ':') <** spaces' <**> jsonValue')
+            (spaces' **> val' ',' <** spaces')
+     <** spaces' <** val' '}')
 ```
 
 ### Incremental ###
@@ -103,15 +125,17 @@ incrementally. The result:
 ```
 Type some JSON here:
 {
-  "foo": [1,2],
-  "bar":  3
- , "baz": {"
-something \" else"
-  :
- [ ]
-  }
- ,"last" :
-42}
+  "foo" : "bar",
+  "baz": 3
+ ,"qux" :3.42 ,
+       "str"  : "string \" here",
+ "arr": [1, 2.3, "4", [], {}],
+"obj":{"a":0},
+"last":{}}
 Parsed! Printing:
-{ "bar" : 3 , "baz" : { "\nsomething \" else" : [  ] } , "foo" : [ 1 , 2 ] , "last" : 42 }
+{ "arr" : [ 1 , 2.3 , "4" , [  ] , {  } ] , "baz" : 3 , "foo" : "bar" , "last" : {  } , "obj" : { "a" : 0 } , "qux" : 3.42 , "str" : "string \" here" }
+Type some JSON here:
+{ "arr" : [ 1 , 2.3 , "4" , [  ] , {  } ] , "baz" : 3 , "foo" : "bar" , "last" : {  } , "obj" : { "a" : 0 } , "qux" : 3.42 , "str" : "string \" here" }
+Parsed! Printing:
+{ "arr" : [ 1 , 2.3 , "4" , [  ] , {  } ] , "baz" : 3 , "foo" : "bar" , "last" : {  } , "obj" : { "a" : 0 } , "qux" : 3.42 , "str" : "string \" here" }
 ```
