@@ -39,7 +39,7 @@ divided = divide id
 
 interface Divisible f => Decidable (f: Type -> Type) where
   lose : (a -> Void) -> f a
-  choose : (a -> Either b c) -> f b -> f c -> f a 
+  choose : (a -> Either b c) -> Lazy (f b) -> Lazy (f c) -> f a
 
 implementation Monoid i => Decidable (Printer i) where
   lose _ = conquer
@@ -47,7 +47,7 @@ implementation Monoid i => Decidable (Printer i) where
     Left fi => f fi
     Right gi => g gi
 
-chosen : Decidable f => f b -> f c -> f (Either b c)
+chosen : Decidable f => Lazy (f b) -> Lazy (f c) -> f (Either b c)
 chosen = choose id
 
 

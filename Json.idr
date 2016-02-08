@@ -17,13 +17,9 @@ jsonNull' : PP (List Char) ()
 jsonNull' = list' $ unpack "null"
 
 jsonBool' : PP (List Char) Bool
-jsonBool' = choice' eitherBool 
-                    ((const False, const ()) <$$> list' (unpack "false"))
-                    ((const True, const ()) <$$> list' (unpack "true"))
-  where
-    eitherBool : Bool -> Either Bool Bool
-    eitherBool False = Left False
-    eitherBool True = Right True
+jsonBool' = choices' {f=const ()} {e=Bool} (const {b=()}) (\b => (b ** ()))
+  [(True ** list' (unpack "true")),
+   (False ** list' (unpack "false"))]
 
 jsonNumber : Parser (List Char) Double
 jsonNumber = do

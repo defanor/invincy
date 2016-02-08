@@ -30,13 +30,32 @@ either' : (Functor f, LazyAlternative f, Decidable g) =>
 either' (fa, ga) (fb, gb) = (map Left fa <|> map Right fb, chosen ga gb)
 
 choice' : (Functor f, LazyAlternative f, Decidable g) =>
-  (a -> Either a a) -> (f a, g a) -> (f a, g a) -> (f a, g a)
+  (a -> Either a a) -> Lazy (f a, g a) -> Lazy (f a, g a) -> (f a, g a)
 choice' e (fa, ga) (fb, gb) = (fa <|> fb, choose e ga gb)
-
 
 ||| Parser and printer
 PP : Type -> Type -> Type
 PP a b = (Parser a b, Printer a b)
+
+||| Generates choices
+||| @t data type
+||| @e enumeration of constructors
+||| @f provides constructor arguments
+||| @c constructor
+||| @d destructor
+||| @l "enumerated" printers/parsers
+choices' : DecEq e
+   => {f: e -> Type}
+   -> (c: (x: e) -> f x -> t)
+   -> (d: t -> (x: e ** f x))
+   -> (l: List (x:e ** PP (List Char) (f x)))
+   -> PP (List Char) t
+choices' dtc dte [] = (fail "Out of alternatives", MkPrinter . const $ unpack "Out of alternatives")
+choices' dtc dte ((v ** p)::xs) =
+  choice' (\val => let (v' ** p') = dte val in (case decEq v' v of Yes _ => Left; No _ => Right) val)
+    ((dtc v, (\val => let (v' ** p') = dte val in (case decEq v' v of Yes eq => replace eq p'))) <$$> p)
+    (choices' dtc dte xs)
+
 
 print' : PP i a -> a -> i
 print' = runPrinter . snd
