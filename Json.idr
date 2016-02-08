@@ -29,15 +29,15 @@ implementation DecEq JsonType where
   decEq JTObject JTObject = Yes Refl
   decEq x y = No $ believe_me (x = y -> Void) -- won't need those
 
-jcArgs : JsonType -> Type
-jcArgs JTString = String
-jcArgs JTNumber = Double
-jcArgs JTBool = Bool
-jcArgs JTNull = ()
-jcArgs JTArray = List JsonValue
-jcArgs JTObject = SortedMap String JsonValue
+jcArgs : JsonType -> (x ** x -> JsonValue)
+jcArgs JTString = (String ** JsonString)
+jcArgs JTNumber = (Double ** JsonNumber)
+jcArgs JTBool = (Bool ** JsonBool)
+jcArgs JTNull = (() ** (\() => JsonNull))
+jcArgs JTArray = (List JsonValue ** JsonArray)
+jcArgs JTObject = (SortedMap String JsonValue ** JsonObject)
 
-dsJson : JsonValue -> (x ** jcArgs x)
+dsJson : JsonValue -> (x ** getWitness (jcArgs x))
 dsJson (JsonString s) = (JTString ** s)
 dsJson (JsonNumber n) = (JTNumber ** n)
 dsJson (JsonBool b) = (JTBool ** b)
@@ -80,12 +80,12 @@ jsonString' = (jsonString, MkPrinter $ unpack . show)
 mutual
   jsonValue' : PP (List Char) JsonValue
   jsonValue' = choices dsJson
-    [ (JTString ** (JsonString, jsonString'))
-    , (JTNumber ** (JsonNumber, jsonNumber'))
-    , (JTBool ** (JsonBool, jsonBool'))
-    , (JTNull ** (const JsonNull, jsonNull'))
-    , (JTArray ** (JsonArray, jsonArray'))
-    , (JTObject ** (JsonObject, jsonObject'))
+    [ (JTString ** jsonString')
+    , (JTNumber ** jsonNumber')
+    , (JTBool ** jsonBool')
+    , (JTNull ** jsonNull')
+    , (JTArray ** jsonArray')
+    , (JTObject ** jsonObject')
     ]
 
   jsonArray' : PP (List Char) (List JsonValue)
@@ -104,8 +104,8 @@ mutual
 
 json' : PP (List Char) JsonValue
 json' = choices dsJson
-  [ (JTArray ** (JsonArray, jsonArray'))
-  , (JTObject ** (JsonObject, jsonObject'))
+  [ (JTArray ** jsonArray')
+  , (JTObject ** jsonObject')
   ]
 
 main : IO ()

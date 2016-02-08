@@ -61,14 +61,16 @@ choices' dtc dte ((v ** p)::xs) =
     (choices' dtc dte xs)
 
 choices : DecEq e
-   => {f: e -> Type}
-   -> (d: t -> (x: e ** f x))
-   -> (l: LazyList (x:e ** (f x -> t, PP (List Char) (f x))))
+   => {f: e -> (a ** a -> t)}
+   -> (d: t -> (x: e ** getWitness (f x)))
+   -> (l: LazyList (x:e ** PP (List Char) (getWitness (f x))))
    -> PP (List Char) t
 choices dte [] = (fail "Out of alternatives", MkPrinter . const $ unpack "Out of alternatives")
-choices dte ((v ** (dtc, p))::xs) =
+choices {f} dte ((v ** p)::xs) =
   choice' (\val => let (v' ** p') = dte val in (case decEq v' v of Yes _ => Left; No _ => Right) val)
-    ((dtc, (\val => let (v' ** p') = dte val in (case decEq v' v of Yes eq => replace eq p'))) <$$> p)
+    ((getProof (f v),
+       (\val => let (v' ** p') = dte val in (case decEq v' v of Yes eq => replace eq p')))
+     <$$> p)
     (choices dte xs)
 
 
