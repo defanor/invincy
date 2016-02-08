@@ -30,12 +30,16 @@ either' : (Functor f, LazyAlternative f, Decidable g) =>
 either' (fa, ga) (fb, gb) = (map Left fa <|> map Right fb, chosen ga gb)
 
 choice' : (Functor f, LazyAlternative f, Decidable g) =>
-  (a -> Either a a) -> Lazy (f a, g a) -> Lazy (f a, g a) -> (f a, g a)
-choice' e (fa, ga) (fb, gb) = (fa <|> fb, choose e ga gb)
+  (a -> Either a a) -> (f a, g a) -> Lazy (f a, g a) -> (f a, g a)
+choice' e (fa, ga) b = (fa <|> fst b, choose e ga (snd b))
 
 ||| Parser and printer
 PP : Type -> Type -> Type
 PP a b = (Parser a b, Printer a b)
+
+data LazyList : Type -> Type where
+  Nil : LazyList a
+  (::) : a -> Lazy (LazyList a) -> LazyList a
 
 ||| Generates choices
 ||| @t data type
@@ -48,7 +52,7 @@ choices' : DecEq e
    => {f: e -> Type}
    -> (c: (x: e) -> f x -> t)
    -> (d: t -> (x: e ** f x))
-   -> (l: List (x:e ** PP (List Char) (f x)))
+   -> (l: LazyList (x:e ** PP (List Char) (f x)))
    -> PP (List Char) t
 choices' dtc dte [] = (fail "Out of alternatives", MkPrinter . const $ unpack "Out of alternatives")
 choices' dtc dte ((v ** p)::xs) =

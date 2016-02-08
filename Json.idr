@@ -13,6 +13,48 @@ data JsonValue = JsonString String
                | JsonArray (List JsonValue)
                | JsonObject (SortedMap String JsonValue)
 
+data JsonType = JTString
+              | JTNumber
+              | JTBool
+              | JTNull
+              | JTArray
+              | JTObject
+
+implementation DecEq JsonType where
+  decEq JTString JTString = Yes Refl
+  decEq JTNumber JTNumber = Yes Refl
+  decEq JTBool JTBool = Yes Refl
+  decEq JTNull JTNull = Yes Refl
+  decEq JTArray JTArray = Yes Refl
+  decEq JTObject JTObject = Yes Refl
+  decEq x y = No $ believe_me (x = y -> Void) -- won't need those
+
+jcArgs : JsonType -> Type
+jcArgs JTString = String
+jcArgs JTNumber = Double
+jcArgs JTBool = Bool
+jcArgs JTNull = ()
+jcArgs JTArray = List JsonValue
+jcArgs JTObject = SortedMap String JsonValue
+
+mkJson : (x: JsonType) -> jcArgs x -> JsonValue
+mkJson JTString = JsonString
+mkJson JTNumber = JsonNumber
+mkJson JTBool = JsonBool
+mkJson JTNull = const JsonNull
+mkJson JTArray = JsonArray
+mkJson JTObject = JsonObject
+
+dsJson : JsonValue -> (x ** jcArgs x)
+dsJson (JsonString s) = (JTString ** s)
+dsJson (JsonNumber n) = (JTNumber ** n)
+dsJson (JsonBool b) = (JTBool ** b)
+dsJson JsonNull = (JTNull ** ())
+dsJson (JsonArray a) = (JTArray ** a)
+dsJson (JsonObject o) = (JTObject ** o)
+
+
+
 jsonNull' : PP (List Char) ()
 jsonNull' = list' $ unpack "null"
 
@@ -44,22 +86,16 @@ jsonString' : PP (List Char) String
 jsonString' = (jsonString, MkPrinter $ unpack . show)
 
 mutual
-  jsonValP : JsonValue -> List Char
-  jsonValP (JsonString s) = print' jsonString' s
-  jsonValP (JsonNumber n) = print' jsonNumber' n
-  jsonValP (JsonBool b) = print' jsonBool' b
-  jsonValP JsonNull = print' jsonNull' ()
-  jsonValP (JsonArray a) = print' jsonArray' a
-  jsonValP (JsonObject o) = print' jsonObject' o
-  
   jsonValue' : PP (List Char) JsonValue
-  jsonValue' = (fst jsonNull' *> pure JsonNull, MkPrinter jsonValP)
-          <||> (JsonBool <$> fst jsonBool')
-          <||> (JsonNumber <$> jsonNumber)
-          <||> (JsonString <$> jsonString)
-          <||> (JsonArray <$> fst jsonArray')
-          <||> (JsonObject <$> fst jsonObject')
-  
+  jsonValue' = choices' mkJson dsJson
+    [ (JTString ** jsonString')
+    , (JTNumber ** jsonNumber')
+    , (JTBool ** jsonBool')
+    , (JTNull ** jsonNull')
+    , (JTArray ** jsonArray')
+    , (JTObject ** jsonObject')
+    ]
+
   jsonArray' : PP (List Char) (List JsonValue)
   jsonArray' = 
     val' '[' **> spaces' **>
@@ -75,8 +111,10 @@ mutual
      <** spaces' <** val' '}')
 
 json' : PP (List Char) JsonValue
-json' = (JsonObject <$> fst jsonObject', MkPrinter jsonValP)
-   <||> JsonArray <$> fst jsonArray'
+json' = choices' mkJson dsJson
+  [ (JTArray ** jsonArray')
+  , (JTObject ** jsonObject')
+  ]
 
 main : IO ()
 main = do

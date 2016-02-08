@@ -43,9 +43,9 @@ interface Divisible f => Decidable (f: Type -> Type) where
 
 implementation Monoid i => Decidable (Printer i) where
   lose _ = conquer
-  choose e (MkPrinter f) (MkPrinter g) = MkPrinter $ \x => case e x of
-    Left fi => f fi
-    Right gi => g gi
+  choose e f g = MkPrinter $ \x => case e x of
+    Left fi => runPrinter f fi
+    Right gi => runPrinter g gi
 
 chosen : Decidable f => Lazy (f b) -> Lazy (f c) -> f (Either b c)
 chosen = choose id
