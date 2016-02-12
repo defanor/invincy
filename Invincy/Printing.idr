@@ -1,7 +1,7 @@
 module Invincy.Printing
 import Data.Vect
 
-import Invincy.Parsing
+import Invincy.Parsing -- just to get streams; todo: move them into Core/Common
 
 %access public export
 

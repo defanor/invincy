@@ -17,6 +17,9 @@ of syntax classes: the first element is a parser (covariant), the
 second is a printer (contravariant). Therefore the printing
 combinators can't be monadic, while the parsing ones can.
 
+
+### Alternatives ###
+
 Invertible alternatives are rather tricky: since the printers
 shouldn't fail, and there is no per-constructor printers here (since
 it's also awkward to make printers that should fail on each
@@ -53,16 +56,8 @@ choices : DecEq e
    -> PP (List Char) t
 ```
 
-Perhaps more elaborate (and handy) alternatives will be added in the
-future.
-
-
-## ToDo ##
-
-As mentioned above, invertible alternatives can use some refinement;
-lists should be replaced with generic streams; perhaps some state
-should be added; error reporting should be improved;
-documentation/comments should be written.
+But those require some boilerplate code, which may be generated
+automatically if it'll come to metaprogramming.
 
 
 ## Examples ##
@@ -108,11 +103,11 @@ The JSON example's `main` function:
 main : IO ()
 main = do
   putStrLn "Type some JSON here:"
-  v <- parseWith' (spaces' **> json') ((unpack . ((++) "\n")) <$> getLine)
+  v <- parseWith' (spaces' **> json') (((++) "\n") <$> getLine)
   case v of
     Done i x => do
       putStrLn "Parsed! Printing:"
-      putStrLn $ pack $ print' json' x
+      putStrLn $ print' json' x
     Failure s => putStrLn $ "Failure: " ++ s
     Partial _ => putStrLn "Uh oh, partial"
   main
