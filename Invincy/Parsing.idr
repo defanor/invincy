@@ -3,27 +3,46 @@ import Data.Vect
 
 %access public export
 
+interface Monoid s => Stream t s | s where
+  cons : t -> s -> s
+  uncons : s -> Maybe (t, s)
+
 mutual
   data Result : (i, r : Type) -> Type where
-    Done : Monoid i => i -> r -> Result i r
-    Partial : Monoid i => Inf (Parser i r) -> Result i r
-    Failure : Monoid i => String -> Result i r
+    Done : Stream t s => s -> r -> Result s r
+    Partial : Stream t s => Inf (Parser s r) -> Result s r
+    Failure : Stream t s => String -> Result s r
 
-  data Parser : (i, r : Type) -> Type where
-    MkParser : ((i -> Result i r)) -> Parser i r
+  data Parser : (i, r : Type) -> Type  where
+    MkParser : Stream t s => ((s -> Result s r)) -> Parser s r
 
-runParser : Parser i r -> ((i -> Result i r))
+implementation Stream t (List t) where
+  cons = (::)
+  uncons (x::xs) = Just (x, xs)
+  uncons [] = Nothing
+
+implementation Stream Char String where
+  cons = strCons
+  uncons s = case strM s of
+    StrNil => Nothing
+    StrCons x xs => Just (x, xs)
+
+fromString : Stream Char s => String -> s
+fromString str = foldl (flip cons) neutral . unpack $ reverse str
+
+
+runParser : Parser s r -> ((s -> Result s r))
 runParser (MkParser f) = f
 
-implementation Monoid i => Functor (Result i) where
+implementation Stream t s => Functor (Result s) where
   map f (Done i r) = Done i (f r)
   map f (Partial k) = assert_total (Partial (MkParser $ map f . runParser k))
   map _ f@(Failure s) = f
 
-implementation Monoid i => Functor (Parser i) where
+implementation Functor (Parser s) where
   map f (MkParser k) = MkParser $ (\x => map f $ k x)
 
-implementation Monoid i => Applicative (Parser i) where
+implementation Stream t s => Applicative (Parser s) where
   pure x = MkParser (\i => Done i x)
   (MkParser f) <*> g = MkParser $ \i => case f i of
     Done i' f' => case runParser g i' of
@@ -34,10 +53,10 @@ implementation Monoid i => Applicative (Parser i) where
     Failure f => Failure f
 
 infixl 2 <*>|
-(<*>|) : Monoid i => Parser i (a -> b) -> Lazy (Parser i a) -> Parser i b
+(<*>|) : Stream t s => Parser s (a -> b) -> Lazy (Parser s a) -> Parser s b
 (<*>|) f g = f <*> g
 
-implementation Monoid i => Monad (Parser i) where
+implementation Stream t s => Monad (Parser s) where
   f >>= g = MkParser $ \i => case runParser f i of
     Done i' f' => runParser (g f') i'
     Partial k => Partial $ k >>= g
@@ -47,7 +66,7 @@ interface Applicative f => LazyAlternative (f : Type -> Type) where
   empty : f a
   (<|>) : f a -> Lazy (f a) -> f a
 
-implementation Monoid i => LazyAlternative (Parser i) where
+implementation Stream t s => LazyAlternative (Parser s) where
   empty = MkParser . const $ Failure "an alternative is empty"
   f <|> g = MkParser $ \i => case (runParser f i) of
     Failure _ => runParser g i
@@ -58,80 +77,80 @@ implementation Monoid i => LazyAlternative (Parser i) where
       in cont <|> next
     done => done
 
-fail : Monoid i => String -> Parser i r
+fail : Stream t s => String -> Parser s r
 fail = MkParser . const . Failure
 
 infixl 3 <?>
-(<?>) : Monoid i => Parser i a -> String -> Parser i a
+(<?>) : Stream t s => Parser s a -> String -> Parser s a
 (<?>) p s = p <|> fail s
 
-item : Parser (List a) a
-item = MkParser $ \i => case i of
-  [] => Partial item
-  (x::xs) => Done xs x
+item : Stream t s => Parser s t
+item = MkParser $ \i => case uncons i of
+  Nothing => Partial item
+  Just (x, xs) => Done xs x
 
-sat : (a -> Bool) -> Parser (List a) a
+sat : Stream t s => (t -> Bool) -> Parser s t
 sat p = do
   i <- item
   if p i then pure i else fail "sat"
 
-ignore : Monoid i => Parser i a -> Parser i ()
+ignore : Stream t s => Parser s a -> Parser s ()
 ignore p = p *> pure ()
 
-val : Eq a => a -> Parser (List a) ()
+val : (Eq t, Stream t s) => t -> Parser s ()
 val x = ignore (sat (== x))
 
-list : Eq a => List a -> Parser (List a) ()
-list [] = pure ()
-list l@(x::xs) = do
-  sat (== x)
-  list xs
-  pure ()
+raw : (Eq t, Stream t s) => s -> Parser s ()
+raw l = case uncons l of
+  Nothing => pure ()
+  Just (x, xs) => do
+    sat (== x)
+    raw xs
+    pure ()
 
-oneOf : Eq a => List a -> Parser (List a) a
+oneOf : (Eq t, Stream t s) => List t -> Parser s t
 oneOf l = sat (flip elem l)
 
-option : Monoid i => Parser i a -> Parser i (Maybe a)
+option : Stream t s => Parser s a -> Parser s (Maybe a)
 option p = (Just <$> p) <|> (pure Nothing)
 
-manyTill : Monoid i => Parser i a -> Parser i b -> Parser i (List a)
+manyTill : Stream t s => Parser s a -> Parser s b -> Parser s (List a)
 manyTill p t = option t >>= maybe ((<+>) . pure <$> p <*>| manyTill p t) (const $ pure neutral)
 
-many : Monoid i => Parser i a -> Parser i (List a)
+many : Stream t s => Parser s a -> Parser s (List a)
 many p = option p >>= maybe (pure neutral) (\x => (<+>) . pure <$> pure x <*>| many p)
 
-some : Monoid i => Parser i a -> Parser i (x:List a ** NonEmpty x)
+some : Stream t s => Parser s a -> Parser s (x:List a ** NonEmpty x)
 some p = do
   first <- p
   rest <- many p
   pure $ (first :: rest ** IsNonEmpty)
-  -- (<+>) . pure <$> p <*> many p
 
-sepBy1 : Monoid i => Parser i a -> Parser i () -> Parser i (x:List a ** NonEmpty x)
+sepBy1 : Stream t s => Parser s a -> Parser s () -> Parser s (x:List a ** NonEmpty x)
 sepBy1 x s = do
   first <- x
   rest <- many (s *> x)
   pure $ (first :: rest ** IsNonEmpty)
 
-sepBy : Monoid i => Parser i a -> Parser i () -> Parser i (List a)
+sepBy : Stream t s => Parser s a -> Parser s () -> Parser s (List a)
 sepBy x s = maybe [] getWitness <$> option (sepBy1 x s)
 
-feed : Monoid i => Result i r -> i -> Result i r
+feed : Stream t s => Result s r -> s -> Result s r
 feed (Partial k) i = runParser k i
 feed (Done i r) i' = Done (i <+> i') r
 feed (Failure s) _ = Failure s
 
-digit : Parser (List Char) Char
+digit : Stream Char s => Parser s Char
 digit = oneOf ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
-integer : Parser (List Char) Integer
+integer : Stream Char s => Parser s Integer
 integer = cast . pack . getWitness <$> some digit
 
 
 -- feed (feed (runParser ((list ['f', 'o', 'o'] *> pure False) <|> (list ['f', 'o', 'r'] *> pure True)) ['f']) ['o']) ['o']
 -- feed (feed (runParser ((list ['f', 'o', 'o'] *> pure False) <|> (list ['f', 'o', 'r'] *> pure True)) ['f']) ['o']) ['r']
 
-parseWith : Monad m => Parser i r -> m i -> m (Result i r)
+parseWith : Monad m => Parser s r -> m s -> m (Result s r)
 parseWith p r = do
   v <- r
   case runParser p v of

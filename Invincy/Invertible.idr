@@ -48,24 +48,24 @@ data LazyList : Type -> Type where
 ||| @c constructor
 ||| @d destructor
 ||| @l "enumerated" printers/parsers
-choices' : DecEq e
+choices' : (DecEq e, Stream t' s)
    => {f: e -> Type}
    -> (c: (x: e) -> f x -> t)
    -> (d: t -> (x: e ** f x))
-   -> (l: LazyList (x:e ** PP (List Char) (f x)))
-   -> PP (List Char) t
-choices' dtc dte [] = (fail "Out of alternatives", MkPrinter . const $ unpack "Out of alternatives")
+   -> (l: LazyList (x:e ** PP s (f x)))
+   -> PP s t
+choices' dtc dte [] = (fail "Out of alternatives", MkPrinter $ const neutral)
 choices' dtc dte ((v ** p)::xs) =
   choice' (\val => let (v' ** p') = dte val in (case decEq v' v of Yes _ => Left; No _ => Right) val)
     ((dtc v, (\val => let (v' ** p') = dte val in (case decEq v' v of Yes eq => replace eq p'))) <$$> p)
     (choices' dtc dte xs)
 
-choices : DecEq e
+choices : (DecEq e, Stream t' s)
    => {f: e -> (a ** a -> t)}
    -> (d: t -> (x: e ** getWitness (f x)))
-   -> (l: LazyList (x:e ** PP (List Char) (getWitness (f x))))
-   -> PP (List Char) t
-choices dte [] = (fail "Out of alternatives", MkPrinter . const $ unpack "Out of alternatives")
+   -> (l: LazyList (x:e ** PP s (getWitness (f x))))
+   -> PP s t
+choices dte [] = (fail "Out of alternatives", MkPrinter $ const neutral)
 choices {f} dte ((v ** p)::xs) =
   choice' (\val => let (v' ** p') = dte val in (case decEq v' v of Yes _ => Left; No _ => Right) val)
     ((getProof (f v),
@@ -96,35 +96,35 @@ sat' : (a -> Bool) -> PP (List a) a
 sat' p = (sat p, itemP)
 
 ||| Ignore an item on parsing, use a fixed one on printing
-ignore' : Monoid i => Parser i a -> i -> PP i ()
+ignore' : Stream t s => Parser s a -> s -> PP s ()
 ignore' p x = (ignore p, ignoreP x)
 
 ||| Parse or print a fixed item
-val' : Eq a => a -> PP (List a) ()
+val' : (Eq t, Stream t s) => t -> PP s ()
 val' x = (val x, valP x)
 
-||| Just as val, but for lists
-list' : Eq a => List a -> PP (List a) ()
-list' l = (list l, ignoreP l)
+||| Just as val, but for multiple tokens
+raw' : (Eq t, Stream t s) => s -> PP s ()
+raw' l = (raw l, ignoreP l)
 
 ||| An optional item
 ||| @a What to print in case if the value is Nothing
-option' : Monoid i => a -> PP i a -> PP i (Maybe a)
+option' : Stream t s => a -> PP s a -> PP s (Maybe a)
 option' x (par, pr) = (option par, optionP x pr)
 
-many' : Monoid i => PP i a -> PP i (List a)
+many' : Stream t s => PP s a -> PP s (List a)
 many' (par, pr) = (many par, manyP pr)
 
-manyTill' : Monoid i => PP i a -> PP i () -> PP i (List a)
+manyTill' : Stream t s => PP s a -> PP s () -> PP s (List a)
 manyTill' (par, pr) (par', pr') = (manyTill par par', manyTillP pr pr')
 
-some' : Monoid i => PP i a -> PP i (x:List a ** NonEmpty x)
+some' : Stream t s => PP s a -> PP s (x:List a ** NonEmpty x)
 some' (par, pr) = (some par, someP pr)
 
-sepBy' : Monoid i => PP i a -> PP i () -> PP i (List a)
+sepBy' : Stream t s => PP s a -> PP s () -> PP s (List a)
 sepBy' (par, pr) (par', pr') = (sepBy par par', sepByP pr pr')
 
-sepBy1' : Monoid i => PP i a -> PP i () -> PP i (x:List a ** NonEmpty x)
+sepBy1' : Stream t s => PP s a -> PP s () -> PP s (x:List a ** NonEmpty x)
 sepBy1' (par, pr) (par', pr') = (sepBy1 par par', sepBy1P pr pr')
 
 integer' : PP (List Char) Integer
@@ -132,5 +132,5 @@ integer' : PP (List Char) Integer
 -- integers into non-empty lists, which is not in the library
 integer' = (cast . pack, unpack . cast) <$$> many' (digit, itemP)
 
-spaces' : PP (List Char) ()
-spaces' = ignore' (many (oneOf [' ', '\n', '\t', '\r'])) [' ']
+spaces' : Stream Char s => PP s ()
+spaces' = ignore' (many (oneOf [' ', '\n', '\t', '\r'])) (cons ' ' neutral)

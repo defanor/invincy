@@ -1,6 +1,8 @@
 module Invincy.Printing
 import Data.Vect
 
+import Invincy.Parsing
+
 %access public export
 
 data Printer : (o, r : Type) -> Type where
@@ -59,8 +61,8 @@ itemP = MkPrinter pure
 ignoreP : Monoid i => i -> Printer i ()
 ignoreP = MkPrinter . const
 
-valP : a -> Printer (List a) ()
-valP = ignoreP . pure
+valP : Stream t s => t -> Printer s ()
+valP = ignoreP . flip cons neutral
 
 optionP : Monoid i => a -> Printer i a -> Printer i (Maybe a)
 optionP x = contramap (maybe x id)

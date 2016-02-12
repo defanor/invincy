@@ -47,38 +47,38 @@ dsJson (JsonObject o) = (JTObject ** o)
 
 
 
-jsonNull' : PP (List Char) ()
-jsonNull' = list' $ unpack "null"
+jsonNull' : PP String ()
+jsonNull' = raw' "null"
 
-jsonBool' : PP (List Char) Bool
+jsonBool' : PP String Bool
 jsonBool' = choices' {f=const ()} {e=Bool} (const {b=()}) (\b => (b ** ()))
-  [(True ** list' (unpack "true")),
-   (False ** list' (unpack "false"))]
+  [(True ** raw' "true"),
+   (False ** raw' "false")]
 
-jsonNumber : Parser (List Char) Double
+jsonNumber : Parser String Double
 jsonNumber = do
   x <- getWitness <$> some digit
   y <- option $ Prelude.Applicative.(*>) (val '.') (getWitness <$> some digit)
   return $ cast . pack $ x ++ (maybe neutral ('.' ::) y)
 
-jsonNumber' : PP (List Char) Double
-jsonNumber' = (jsonNumber, MkPrinter $ unpack . show)
+jsonNumber' : PP String Double
+jsonNumber' = (jsonNumber, MkPrinter $ fromString . show)
 
-jsonString : Parser (List Char) String
-jsonString = val '"' *> (pack <$> jsonStr)
+jsonString : Parser String String
+jsonString = val '"' *> jsonStr
   where
-    jsonStr : Parser (List Char) (List Char)
-    jsonStr = (val '"' *> pure []) <|> do
+    jsonStr : Parser String String
+    jsonStr = (val '"' *> pure neutral) <|> do
       c <- sat (/= '"')
       if (c == '\\')
-      then (::) <$> oneOf ['"', '\\', '/', '\b', '\f', '\n', '\r', '\t'] <*> jsonStr
-      else (c ::) <$> jsonStr
+      then cons <$> oneOf ['"', '\\', '/', '\b', '\f', '\n', '\r', '\t'] <*> jsonStr
+      else (cons c) <$> jsonStr
 
-jsonString' : PP (List Char) String
-jsonString' = (jsonString, MkPrinter $ unpack . show)
+jsonString' : PP String String
+jsonString' = (jsonString, MkPrinter $ fromString . show)
 
 mutual
-  jsonValue' : PP (List Char) JsonValue
+  jsonValue' : PP String JsonValue
   jsonValue' = choices dsJson
     [ (JTString ** jsonString')
     , (JTNumber ** jsonNumber')
@@ -88,21 +88,21 @@ mutual
     , (JTObject ** jsonObject')
     ]
 
-  jsonArray' : PP (List Char) (List JsonValue)
+  jsonArray' : PP String (List JsonValue)
   jsonArray' = 
     val' '[' **> spaces' **>
     sepBy' jsonValue'
            (spaces' **> val' ',' <** spaces')
     <** spaces' <** val' ']'
 
-  jsonObject' : PP (List Char) (SortedMap String JsonValue)
+  jsonObject' : PP String (SortedMap String JsonValue)
   jsonObject' = (fromList, toList) <$$>
     (val' '{' **> spaces' **>
      sepBy' (jsonString' <** spaces' <** (val' ':') <** spaces' <**> jsonValue')
             (spaces' **> val' ',' <** spaces')
      <** spaces' <** val' '}')
 
-json' : PP (List Char) JsonValue
+json' : PP String JsonValue
 json' = choices dsJson
   [ (JTArray ** jsonArray')
   , (JTObject ** jsonObject')
@@ -111,11 +111,11 @@ json' = choices dsJson
 main : IO ()
 main = do
   putStrLn "Type some JSON here:"
-  v <- parseWith' (spaces' **> json') ((unpack . ((++) "\n")) <$> getLine)
+  v <- parseWith' (spaces' **> json') (((++) "\n") <$> getLine)
   case v of
     Done i x => do
       putStrLn "Parsed! Printing:"
-      putStrLn $ pack $ print' json' x
+      putStrLn $ print' json' x
     Failure s => putStrLn $ "Failure: " ++ s
     Partial _ => putStrLn "Uh oh, partial"
   main
