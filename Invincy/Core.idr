@@ -26,3 +26,12 @@ implementation Stream Char String where
 
 fromString : Stream Char s => String -> s
 fromString = concatMap single . unpack
+
+toList : Stream t s => s -> List t
+toList s = case uncons s of
+  Nothing => []
+  Just (x, xs) => x :: toList xs
+
+fromList : Stream t s => List t -> s
+fromList [] = neutral
+fromList (x::xs) = cons x $ fromList xs

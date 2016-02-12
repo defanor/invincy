@@ -12,10 +12,10 @@ mutual
     Failure : Stream t s => String -> Result s r
 
   data Parser : (i, r : Type) -> Type  where
-    MkParser : Stream t s => ((s -> Result s r)) -> Parser s r
+    MkParser : Stream t s => (s -> Result s r) -> Parser s r
 
 
-runParser : Parser s r -> ((s -> Result s r))
+runParser : Parser s r -> s -> Result s r
 runParser (MkParser f) = f
 
 implementation Stream t s => Functor (Result s) where
@@ -118,6 +118,18 @@ sepBy1 x s = do
 
 sepBy : Stream t s => Parser s a -> Parser s () -> Parser s (List a)
 sepBy x s = maybe [] getWitness <$> option (sepBy1 x s)
+
+match : Stream t s => Parser s a -> Parser s (s, a)
+match p = MkParser $ \i => match' i $ runParser p i
+  where
+    match' : s -> Result s a -> Result s (s, a)
+    match' raw (Done i r) =
+      let il = toList i
+          rawl = toList raw
+      in Done i (fromList (take (minus (length rawl) (length il)) rawl), r)
+    match' raw (Failure e) = Failure e
+    match' raw (Partial k) = Partial $ (\(raw', x) => (raw <+> raw', x)) <$> match k
+
 
 feed : Stream t s => Result s r -> s -> Result s r
 feed (Partial k) i = runParser k i
