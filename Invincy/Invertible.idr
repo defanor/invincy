@@ -1,29 +1,26 @@
 module Invincy.Invertible
 
+import Invincy.Core
 import Invincy.Parsing
 import Invincy.Printing
 
+
 %access public export
 
-infixl 4 <$$>
-(<$$>) : (Functor f, Contravariant g) => ((a -> b), (b -> a)) -> (f a, g a) -> (f b, g b)
-(<$$>) (f', c') (f, c) = (map f' f, contramap c' c)
+(<$>) : (Functor f, Contravariant g) => ((a -> b), (b -> a)) -> (f a, g a) -> (f b, g b)
+(<$>) (f', c') (f, c) = (map f' f, contramap c' c)
 
-infixl 2 <**>
-(<**>) : (Applicative f, Divisible g) => (f a, g a) -> (f b, g b) -> (f (a, b), g (a, b))
-(<**>) (fa, ga) (fb, gb) = (MkPair <$> fa <*> fb, divided ga gb)
+(<*>) : (Applicative f, Divisible g) => (f a, g a) -> (f b, g b) -> (f (a, b), g (a, b))
+(<*>) (fa, ga) (fb, gb) = (MkPair <$> fa <*> fb, divided ga gb)
 
-infixl 2 <**
-(<**) : (Applicative f, Divisible g) => (f a, g a) -> (f b, g ()) -> (f a, g a)
-(<**) (fa, ga) (fb, gb) = (fa <* fb, divide (flip MkPair ()) ga gb)
+(<*) : (Applicative f, Divisible g) => (f a, g a) -> (f b, g ()) -> (f a, g a)
+(<*) (fa, ga) (fb, gb) = (fa <* fb, ga <* gb)
 
-infixl 2 **>
-(**>) : (Applicative f, Divisible g) => (f a, g ()) -> (f b, g b) -> (f b, g b)
-(**>) (fa, ga) (fb, gb) = (fa *> fb, divide (MkPair ()) ga gb)
+(*>) : (Applicative f, Divisible g) => (f a, g ()) -> (f b, g b) -> (f b, g b)
+(*>) (fa, ga) (fb, gb) = (fa *> fb, ga *> gb)
 
-infixl 3 <||>
-(<||>) : LazyAlternative f => {g: Type -> Type} -> (f a, g a) -> Lazy (f a) -> (f a, g a)
-(<||>) (fa, ga) fb = (fa <|> fb, ga)
+(<|>) : LazyAlternative f => {g: Type -> Type} -> (f a, g a) -> Lazy (f a) -> (f a, g a)
+(<|>) (fa, ga) fb = (fa <|> fb, ga)
 
 either' : (Functor f, LazyAlternative f, Decidable g) =>
   (f a, g a) -> (f b, g b) -> (f (Either a b), g (Either a b))
@@ -57,7 +54,7 @@ choices' : (DecEq e, Stream t' s)
 choices' dtc dte [] = (fail "Out of alternatives", MkPrinter $ const neutral)
 choices' dtc dte ((v ** p)::xs) =
   choice' (\val => let (v' ** p') = dte val in (case decEq v' v of Yes _ => Left; No _ => Right) val)
-    ((dtc v, (\val => let (v' ** p') = dte val in (case decEq v' v of Yes eq => replace eq p'))) <$$> p)
+    ((dtc v, (\val => let (v' ** p') = dte val in (case decEq v' v of Yes eq => replace eq p'))) <$> p)
     (choices' dtc dte xs)
 
 choices : (DecEq e, Stream t' s)
@@ -70,7 +67,7 @@ choices {f} dte ((v ** p)::xs) =
   choice' (\val => let (v' ** p') = dte val in (case decEq v' v of Yes _ => Left; No _ => Right) val)
     ((getProof (f v),
        (\val => let (v' ** p') = dte val in (case decEq v' v of Yes eq => replace eq p')))
-     <$$> p)
+     <$> p)
     (choices dte xs)
 
 
@@ -130,7 +127,7 @@ sepBy1' (par, pr) (par', pr') = (sepBy1 par par', sepBy1P pr pr')
 integer' : PP (List Char) Integer
 -- would be better to use `some'` here, but it'd require to cast
 -- integers into non-empty lists, which is not in the library
-integer' = (cast . pack, unpack . cast) <$$> many' (digit, itemP)
+integer' = (cast . pack, unpack . cast) <$> many' (digit, itemP)
 
 spaces' : Stream Char s => PP s ()
-spaces' = ignore' (many (oneOf [' ', '\n', '\t', '\r'])) (cons ' ' neutral)
+spaces' = ignore' (many (oneOf [' ', '\n', '\t', '\r'])) (single ' ')

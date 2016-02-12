@@ -1,6 +1,7 @@
 package invincy
 
-modules = Invincy.Parsing
+modules = Invincy
+        , Invincy.Core
+        , Invincy.Parsing
         , Invincy.Printing
         , Invincy.Invertible
-

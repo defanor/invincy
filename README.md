@@ -80,19 +80,19 @@ mutual
     , (JTObject ** jsonObject')
     ]
 
-  jsonArray' : PP (List Char) (List JsonValue)
+  jsonArray' : PP String (List JsonValue)
   jsonArray' =
-    val' '[' **> spaces' **>
+    val' '[' *> spaces' *>
     sepBy' jsonValue'
-           (spaces' **> val' ',' <** spaces')
-    <** spaces' <** val' ']'
+           (spaces' *> val' ',' <* spaces')
+    <* spaces' <* val' ']'
 
-  jsonObject' : PP (List Char) (SortedMap String JsonValue)
-  jsonObject' = (fromList, toList) <$$>
-    (val' '{' **> spaces' **>
-     sepBy' (jsonString' <** spaces' <** (val' ':') <** spaces' <**> jsonValue')
-            (spaces' **> val' ',' <** spaces')
-     <** spaces' <** val' '}')
+  jsonObject' : PP String (SortedMap String JsonValue)
+  jsonObject' = (fromList, toList) <$>
+    (val' '{' *> spaces' *>
+     sepBy' (jsonString' <* spaces' <* val' ':' <* spaces' <*> jsonValue')
+            (spaces' *> val' ',' <* spaces')
+     <* spaces' <* val' '}')
 ```
 
 ### Incremental ###

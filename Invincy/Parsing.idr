@@ -1,11 +1,9 @@
 module Invincy.Parsing
 import Data.Vect
+import Invincy.Core
 
 %access public export
 
-interface Monoid s => Stream t s | s where
-  cons : t -> s -> s
-  uncons : s -> Maybe (t, s)
 
 mutual
   data Result : (i, r : Type) -> Type where
@@ -15,20 +13,6 @@ mutual
 
   data Parser : (i, r : Type) -> Type  where
     MkParser : Stream t s => ((s -> Result s r)) -> Parser s r
-
-implementation Stream t (List t) where
-  cons = (::)
-  uncons (x::xs) = Just (x, xs)
-  uncons [] = Nothing
-
-implementation Stream Char String where
-  cons = strCons
-  uncons s = case strM s of
-    StrNil => Nothing
-    StrCons x xs => Just (x, xs)
-
-fromString : Stream Char s => String -> s
-fromString str = foldl (flip cons) neutral . unpack $ reverse str
 
 
 runParser : Parser s r -> ((s -> Result s r))

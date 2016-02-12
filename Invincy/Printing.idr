@@ -1,7 +1,6 @@
 module Invincy.Printing
 import Data.Vect
-
-import Invincy.Parsing -- just to get streams; todo: move them into Core/Common
+import Invincy.Core
 
 %access public export
 
@@ -53,16 +52,15 @@ chosen : Decidable f => Lazy (f b) -> Lazy (f c) -> f (Either b c)
 chosen = choose id
 
 
-
 -- could be used for the invertible sat, with no check
-itemP : Printer (List a) a
-itemP = MkPrinter pure
+itemP : Stream t s => Printer s t
+itemP = MkPrinter single
 
 ignoreP : Monoid i => i -> Printer i ()
 ignoreP = MkPrinter . const
 
 valP : Stream t s => t -> Printer s ()
-valP = ignoreP . flip cons neutral
+valP = ignoreP . single
 
 optionP : Monoid i => a -> Printer i a -> Printer i (Maybe a)
 optionP x = contramap (maybe x id)

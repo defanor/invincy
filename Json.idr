@@ -1,10 +1,7 @@
 module Main
-
-import Invincy.Parsing
-import Invincy.Printing
-import Invincy.Invertible
-
 import Data.SortedMap
+import Invincy
+
 
 data JsonValue = JsonString String
                | JsonNumber Double
@@ -89,18 +86,17 @@ mutual
     ]
 
   jsonArray' : PP String (List JsonValue)
-  jsonArray' = 
-    val' '[' **> spaces' **>
-    sepBy' jsonValue'
-           (spaces' **> val' ',' <** spaces')
-    <** spaces' <** val' ']'
+  jsonArray' =
+    val' '[' *> spaces' *>
+    sepBy' jsonValue' (spaces' *> val' ',' <* spaces')
+    <* spaces' <* val' ']'
 
   jsonObject' : PP String (SortedMap String JsonValue)
-  jsonObject' = (fromList, toList) <$$>
-    (val' '{' **> spaces' **>
-     sepBy' (jsonString' <** spaces' <** (val' ':') <** spaces' <**> jsonValue')
-            (spaces' **> val' ',' <** spaces')
-     <** spaces' <** val' '}')
+  jsonObject' = (fromList, toList) <$>
+    (val' '{' *> spaces' *>
+     sepBy' (jsonString' <* spaces' <* val' ':' <* spaces' <*> jsonValue')
+            (spaces' *> val' ',' <* spaces')
+     <* spaces' <* val' '}')
 
 json' : PP String JsonValue
 json' = choices dsJson
@@ -111,7 +107,7 @@ json' = choices dsJson
 main : IO ()
 main = do
   putStrLn "Type some JSON here:"
-  v <- parseWith' (spaces' **> json') (((++) "\n") <$> getLine)
+  v <- parseWith' (spaces' *> json') $ (++ "\n") <$> getLine
   case v of
     Done i x => do
       putStrLn "Parsed! Printing:"
