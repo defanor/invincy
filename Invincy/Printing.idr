@@ -77,7 +77,7 @@ manyTillP p t = manyP p <* t
 
 sepBy1P : Monoid i => Printer i a -> Printer i () -> Printer i (x:List a ** NonEmpty x)
 sepBy1P p s = MkPrinter $ \(x::xs ** _) => 
-  runPrinter p x <+> runPrinter (contramap toList (manyP (s *> p))) xs
+  runPrinter p x <+> runPrinter (contramap List.toList (manyP (s *> p))) xs
 
 sepByP : Monoid i => Printer i a -> Printer i () -> Printer i (List a)
 sepByP {i} p s = MkPrinter sep
