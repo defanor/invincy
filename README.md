@@ -28,8 +28,8 @@ metaprogramming), the primary alternative selection accepts just one
 printer, but multiple parsers:
 
 ```idris
-(<||>) : LazyAlternative f => {g: Type -> Type} -> (f a, g a) -> Lazy (f a) -> (f a, g a)
-(<||>) (fa, ga) fb = (fa <|> fb, ga)
+(<|>) : LazyAlternative f => {g: Type -> Type} -> (f a, g a) -> Lazy (f a) -> (f a, g a)
+(<|>) (fa, ga) fb = (fa <|> fb, ga)
 ```
 
 Yet there is a couple of other options, making use of `Decidable`
@@ -56,8 +56,9 @@ choices : DecEq e
    -> PP (List Char) t
 ```
 
-But those require some boilerplate code, which may be generated
-automatically if it'll come to metaprogramming.
+Those require some boilerplate code, but it can be generated using
+elaborator reflection; rudimentary functions for that are present in
+`Invincy.Gen`.
 
 
 ## Examples ##

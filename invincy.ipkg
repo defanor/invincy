@@ -5,3 +5,4 @@ modules = Invincy
         , Invincy.Parsing
         , Invincy.Printing
         , Invincy.Invertible
+        , Invincy.Gen

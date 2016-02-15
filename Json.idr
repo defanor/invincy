@@ -27,21 +27,10 @@ implementation DecEq JsonType where
   decEq x y = No $ believe_me (x = y -> Void) -- won't need those
 
 jcArgs : JsonType -> (x ** x -> JsonValue)
-jcArgs JTString = (String ** JsonString)
-jcArgs JTNumber = (Double ** JsonNumber)
-jcArgs JTBool = (Bool ** JsonBool)
-jcArgs JTNull = (() ** (\() => JsonNull))
-jcArgs JTArray = (List JsonValue ** JsonArray)
-jcArgs JTObject = (SortedMap String JsonValue ** JsonObject)
+%runElab (cArgs (NS (UN "jcArgs") ["Main"]))
 
 dsJson : JsonValue -> (x ** getWitness (jcArgs x))
-dsJson (JsonString s) = (JTString ** s)
-dsJson (JsonNumber n) = (JTNumber ** n)
-dsJson (JsonBool b) = (JTBool ** b)
-dsJson JsonNull = (JTNull ** ())
-dsJson (JsonArray a) = (JTArray ** a)
-dsJson (JsonObject o) = (JTObject ** o)
-
+%runElab (dArgs `(\x => getWitness (jcArgs x)) (NS (UN "dsJson") ["Main"]))
 
 
 jsonNull' : PP String ()
