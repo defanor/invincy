@@ -10,6 +10,7 @@ data JsonValue = JsonString String
                | JsonArray (List JsonValue)
                | JsonObject (SortedMap String JsonValue)
 
+-- can't generate it with elaborator reflection yet
 data JsonType = JTString
               | JTNumber
               | JTBool
@@ -17,6 +18,7 @@ data JsonType = JTString
               | JTArray
               | JTObject
 
+-- derivation with Pruviloj.Derive.DecEq leads to strange errors
 implementation DecEq JsonType where
   decEq JTString JTString = Yes Refl
   decEq JTNumber JTNumber = Yes Refl
@@ -41,17 +43,17 @@ jsonBool' = choices' {f=const ()} {e=Bool} (const {b=()}) (\b => (b ** ()))
   [(True ** raw' "true"),
    (False ** raw' "false")]
 
-jsonNumber : Parser String Double
-jsonNumber = do
-  x <- getWitness <$> some digit
-  y <- option $ Prelude.Applicative.(*>) (val '.') (getWitness <$> some digit)
-  return $ cast . pack $ x ++ (maybe neutral ('.' ::) y)
-
 jsonNumber' : PP String Double
 jsonNumber' = (jsonNumber, MkPrinter $ fromString . show)
+  where
+    jsonNumber : Parser String Double
+    jsonNumber = do
+      x <- getWitness <$> some digit
+      y <- option $ Prelude.Applicative.(*>) (val '.') (getWitness <$> some digit)
+      return $ cast . pack $ x ++ (maybe neutral ('.' ::) y)
 
-jsonString : Parser String String
-jsonString = val '"' *> jsonStr
+jsonString' : PP String String
+jsonString' = (jsonString, MkPrinter $ fromString . show)
   where
     jsonStr : Parser String String
     jsonStr = (val '"' *> pure neutral) <|> do
@@ -59,9 +61,8 @@ jsonString = val '"' *> jsonStr
       if (c == '\\')
       then cons <$> oneOf ['"', '\\', '/', '\b', '\f', '\n', '\r', '\t'] <*> jsonStr
       else (cons c) <$> jsonStr
-
-jsonString' : PP String String
-jsonString' = (jsonString, MkPrinter $ fromString . show)
+    jsonString : Parser String String
+    jsonString = val '"' *> jsonStr
 
 mutual
   jsonValue' : PP String JsonValue
